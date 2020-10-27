@@ -5,6 +5,9 @@ For use with bots that have `!so` commands, essentially acts as an auto shoutout
 
 Much of the code (and like 100% of the installation instructions below) was used from [Timbot](https://github.com/roydejong/timbot)
 
+### Feeling generous?
+[![Buy me a Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/brofar)
+
 ## Features
 * Monitors Twitch chat for users in the shout out list and shouts them out when they talk for the first time.
 * Programmable delay, so the shout out happens later in your stream rather than at the very beginning.
