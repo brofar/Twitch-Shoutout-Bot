@@ -21,7 +21,7 @@ class ShoutOuts {
     static shouldShoutOut(username, started_at) {
       username = username.trim().toLowerCase();
 
-      //console.log('[ShoutOuts]', `Checking shout out timing for @${username}`);
+      console.log('[ShoutOuts]', `Checking shout out timing for @${username}`);
       // Don't shout out people not on the list
       if (!this.inList(username)) return false;
 
@@ -36,7 +36,7 @@ class ShoutOuts {
       let streamUptime = moment().diff(started_at, 'minutes');
       let rightTime = (streamUptime > waitTime) || false;
 
-      //console.log('[ShoutOuts]', `Stream uptime: ${streamUptime}; Wait time: ${waitTime}`);
+      console.log('[ShoutOuts]', `Stream uptime: ${streamUptime}; Wait time: ${waitTime}`);
 
       if(rightTime) {
         // Check last shout out vs this stream's start time
@@ -55,6 +55,7 @@ class ShoutOuts {
         }
         this._userDb.put('shout-outs', shouts);
       }
+      console.log('[ShoutOuts]', `Should @${username} get a shout? ${shouldShout}`);
       return shouldShout;
     }
 }
