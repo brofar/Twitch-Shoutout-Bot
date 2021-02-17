@@ -93,7 +93,6 @@ function connect() {
   client.connect()
   .then(() => {
     console.log(`[Twitch]`, `Connected.`);
-    client.say("brofar", `hi`);
   })
   .catch((err) => {
     console.log('[Twitch]', `Couldn't connect.`, err.message);
