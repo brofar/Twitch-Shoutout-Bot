@@ -4,6 +4,7 @@ const moment = require('moment');
 const ShoutOuts = require('./shoutouts');
 const TwitchApi = require('./twitch-api');
 const TwitchMonitor = require('./twitch-monitor');
+const axios = require('axios');
 const fs = require("fs");
 
 // --- Startup -------------------------------------------
@@ -28,8 +29,6 @@ for (const file of commandFiles) {
 console.log(`[Twitch]`, `Finished loading commands.`);
 
 // --- Twitch --------------------------------------------
-console.log(`[Twitch]`, `Connecting to Twitch...`);
-
 // Define bot configuration options
 const opts = {
   options: { debug: false },
@@ -37,19 +36,25 @@ const opts = {
     username: process.env.BOT_USERNAME,
     password: process.env.BOT_OAUTH_TOKEN
   },
-  channels: [process.env.CHANNEL_NAME]
+  channels: [process.env.CHANNEL_NAME],
+  secure: true,
+  reconnect: true
 };
 
 // Create a Twitch chat client with our options
 const client = new tmi.client(opts);
 
+// Command prefix
+const prefix = process.env.TWITCH_PREFIX;
+
 // Register our event handlers (defined below)
-client.on("message", async (channel, context, msg, self) => {
-  // Ignore messages from the bot
+
+// Get chats (we don't care about whispers or action messages)
+client.on("chat", async (channel, userstate, msg, self) => {
+  // Ignore messages from the bot itself
   if (self) return;
 
-  let prefix = process.env.TWITCH_PREFIX;
-  let user = context.username.toLowerCase();
+  let user = userstate.username.toLowerCase();
 
   //console.log('[TEMP]', `${user}: ${msg}`);
 
@@ -57,55 +62,67 @@ client.on("message", async (channel, context, msg, self) => {
   var commandName = msg.trim().toLowerCase();
 
   // Bot Commands
-  if (msg.startsWith(prefix) && isMod(context)) {
-    var args = msg.slice(prefix.length).trim().split(/ +/);
-    var command = args.shift().toLowerCase();
-
-    if (!commands.hasOwnProperty(command)) return;
-
-    console.log('[Twitch]', `Received command ${command} from ${user}`);
-
-    // Run the actual command
-    try {
-      commands[command].execute(client, channel, msg, args);
-    } catch (e) {
-      console.warn('[Twitch]', 'Command execution problem:', e);
-      client.say(channel, `There was an error trying to execute that command.`);
-    }
+  if (msg.startsWith(prefix) && isMod(userstate)) {
+    HandleCommand(commandName, channel, msg, args);
   }
+
+  // Actual shout out stuff
   let started_at = TwitchMonitor.startedAt;
   let is_live = TwitchMonitor.isLive;
   if (is_live && ShoutOuts.shouldShoutOut(user, started_at)) {
-    //console.log('[TEMP]', `!so @${user}`);
+
     client.say(channel, `!so @${user}`)
       .then(() => {
         console.log('[Twitch]', `Shout Out command sent for @${user}.`);
       })
       .catch((err) => {
-        console.log('[AddSo]', `Couldn't shout out @${user}.`, err.message);
+        console.log('[Twitch]', `Couldn't shout out @${user}.`, err.message);
       });
   }
 });
 
+client.on("disconnected", (reason) => {
+  console.log(`[Twitch]`, `Disconnected. Reason: ${reason}`);
+  connect();
+});
+
+// Functions
+
+function connect() {
+  console.log(`[Twitch]`, `Logging in to Twitch...`);
+  client.connect()
+  .then(() => {
+    console.log(`[Twitch]`, `Connected.`);
+    client.say("brofar", `hi`);
+  })
+  .catch((err) => {
+    console.log('[Twitch]', `Couldn't connect.`, err.message);
+  });
+}
+
+function HandleCommand (command, channel, msg, args) {
+  var args = msg.slice(prefix.length).trim().split(/ +/);
+  var command = args.shift().toLowerCase();
+
+  if (!commands.hasOwnProperty(command)) return;
+
+  console.log('[Twitch]', `Received command ${command}.`);
+
+  // Run the actual command
+  try {
+    commands[command].execute(client, channel, msg, args);
+  } catch (e) {
+    console.warn('[Twitch]', 'Command execution problem:', e);
+    client.say(channel, `There was an error trying to execute that command.`);
+  }
+}
+
 // Connect to Twitch:
-console.log(`[Twitch]`, `Logging in to Twitch...`);
-client.connect();
+connect();
 TwitchMonitor.init();
 ShoutOuts.init();
 
-
-function isMod(context) {
-  // Use badges to determine whether the user is a mod/broadcaster
-  // without needing to pull the user object. The mod/broadcaster
-  // badge will be in slot 1 (of a possible 3) of the user's badges.
-  var badge1 = '';
-
-  if (Object.keys(context.badges).length > 0)
-    badge1 = Object.keys(context.badges)[0];
-
-  let isMod = (badge1 === 'moderator');
-  let isBroadcaster = (badge1 === 'broadcaster');
-  let isModUp = isMod || isBroadcaster;
-
-  return isModUp;
+// Check if user is a mod or higher.
+function isMod(userstate) {
+  return userstate.mod || userstate.badges.broadcaster;
 }

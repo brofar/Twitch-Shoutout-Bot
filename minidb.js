@@ -20,6 +20,13 @@ class MiniDb {
           flag: 'r'
         });
         return JSON.parse(raw) || null;
+      } else {
+        fs.writeFileSync(filePath, "{}", {
+          encoding: 'utf8',
+          mode: '666',
+          flag: 'w'
+        });
+        return {};
       }
     } catch (e) {
       console.error('[MiniDb]', 'Write error:', filePath, e);
